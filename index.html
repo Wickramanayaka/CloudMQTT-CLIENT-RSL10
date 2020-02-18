@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control Panel</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js"
+      type="text/javascript"
+    ></script>
+    <script>
+      if (typeof Storage !== "undefined") {
+        localStorage.temp_min = 70;
+        localStorage.temp_max = 0;
+      } else {
+        alert("No storage found");
+      }
+      function reset_counter() {
+        localStorage.temp_min = 70;
+        localStorage.temp_max = 0;
+        $("#temp-alert").addClass("badge-success");
+        $("#temp-alert").removeClass("badge-danger");
+        $("#temp-alert").html("NORMAL");
+        $("#movement-alert").addClass("badge-success");
+        $("#movement-alert").removeClass("badge-danger");
+        $("#movement-alert").html("NORMAL");
+      }
+      function reset_movement() {
+            $("#movement-alert").addClass("badge-success");
+            $("#movement-alert").removeClass("badge-danger");
+            $("#movement-alert").html("NORMAL");
+        }
+    </script>
+    <script>
+      // Create a client instance
+      client = new Paho.MQTT.Client(
+        "hairdresser.cloudmqtt.com",
+        Number(36163),
+        "/mqtt",
+        "chamal"
+      );
+
+      // set callback handlers
+      client.onConnectionLost = onConnectionLost;
+      client.onMessageArrived = onMessageArrived;
+
+      // connect the client
+      client.connect({
+        onSuccess: onConnect,
+        userName: "",
+        password: "",
+        useSSL: true
+      });
+
+      // called when the client connects
+      function onConnect() {
+        // Once a connection has been made, make a subscription and send a message.
+        console.log("onConnect");
+        client.subscribe("#");
+        message = new Paho.MQTT.Message("Hello, this is chamal");
+        message.destinationName = "topic";
+        client.send(message);
+      }
+
+      // called when the client loses its connection
+      function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+          console.log("onConnectionLost:" + responseObject.errorMessage);
+        }
+      }
+
+      // called when a message arrives
+      function onMessageArrived(message) {
+        //console.log(message.payloadString);
+        try {
+          let obj = JSON.parse(message.payloadString);
+          $("#temp-data").html(obj.Source_60_C0_BF_28_74_37_Temperature);
+          $("#acc").html(obj.Source_60_C0_BF_28_74_37_Accelerometer);
+          $("#gyr").html(obj.Source_60_C0_BF_28_74_37_Gyroscope);
+          // Write min and max
+          if (
+            localStorage.temp_min >= obj.Source_60_C0_BF_28_74_37_Temperature
+          ) {
+            localStorage.temp_min = obj.Source_60_C0_BF_28_74_37_Temperature;
+            $("#temp-min").html(localStorage.temp_min);
+          } else {
+            // nothing
+          }
+          if (
+            localStorage.temp_max <= obj.Source_60_C0_BF_28_74_37_Temperature
+          ) {
+            localStorage.temp_max = obj.Source_60_C0_BF_28_74_37_Temperature;
+            $("#temp-max").html(localStorage.temp_max);
+          } else {
+            // nothing
+          }
+          // Wild fire Alert
+          if (obj.Source_60_C0_BF_28_74_37_Temperature > 50) {
+            $("#temp-alert").html("WARNING");
+            $("#temp-alert").removeClass("badge-success");
+            $("#temp-alert").addClass("badge-danger");
+          }
+          // Movement alert
+          
+          var accelerometer = obj.Source_60_C0_BF_28_74_37_Accelerometer.split(",");
+          console.log(accelerometer);
+
+          for (i = 0; i < 3; i++) {
+            if (parseInt(accelerometer[i]) > 100) {
+              $("#movement-alert").html("WARNING");
+              $("#movement-alert").removeClass("badge-success");
+              $("#movement-alert").removeClass("badge-danger");
+              $("#movement-alert").addClass("badge-danger");
+            }
+            else{
+            }
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <nav class="navbar navbar-light bg-light">
+      <span class="navbar-brand mb-0 h1">Control Panel</span>
+    </nav>
+    <br />
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-3">
+          <div class="card bg-dark text-light">
+            <div class="card-body">
+              <h5 class="card-title">
+                Wildfire Detection
+                <span id="temp-alert" class="badge badge-success m2"
+                  >NORMAL</span
+                >
+              </h5>
+              <h6 class="card-subtitle mb-2 text-muted">
+                Min:
+                <span id="temp-min" class="badge badge-success m2"></span> Max:
+                <span id="temp-max" class="badge badge-danger m2"></span>
+              </h6>
+              <p class="card-text">Temperature: <span id="temp-data"></span></p>
+              <a href="#" onclick="reset_counter()" class="card-link">Reset</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <div class="row">
+        <div class="col-3">
+          <div class="card bg-dark text-light">
+            <div class="card-body">
+              <h5 class="card-title">
+                Landslide Detection
+                <span id="movement-alert" class="badge badge-success m2"
+                  >NORMAL</span
+                >
+              </h5>
+              <p class="card-text">
+                Accelerometer: <span id="acc"></span><br />
+                Gyroscope: <span id="gyr"></span>
+              </p>
+              <a href="#" onclick="reset_movement()" class="card-link">Reset</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script
+      src="https://code.jquery.com/jquery-3.4.1.min.js"
+      integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+      integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+      integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>
